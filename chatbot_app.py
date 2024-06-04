@@ -17,15 +17,16 @@ from streamlit_chat import message
 
 st.set_page_config(layout="wide")
 
-device = torch.device('cpu')
+# device = torch.device('cpu')
 
 checkpoint = "MBZUAI/LaMini-T5-738M"
 print(f"Checkpoint path: {checkpoint}")  # Add this line for debugging
 tokenizer = AutoTokenizer.from_pretrained(checkpoint)
 base_model = AutoModelForSeq2SeqLM.from_pretrained(
     checkpoint,
-    device_map=device,
-    torch_dtype=torch.float32
+    # device_map=device,
+    torch_dtype=torch.float32,
+    cache_dir="models",
 )
 
 persist_directory = "db"
@@ -43,7 +44,7 @@ def data_ingestion():
     #create embeddings here
     embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
     #create vector store here
-    db = Chroma.from_documents(texts, embeddings, persist_directory=persist_directory, client_settings=CHROMA_SETTINGS)
+    db = Chroma.from_documents(texts, embeddings, persist_directory=persist_directory)
     db.persist()
     db=None 
 
@@ -57,7 +58,7 @@ def llm_pipeline():
         do_sample = True,
         temperature = 0.3,
         top_p= 0.95,
-        device=device
+        # device=device
     )
     local_llm = HuggingFacePipeline(pipeline=pipe)
     return local_llm
@@ -66,7 +67,7 @@ def llm_pipeline():
 def qa_llm():
     llm = llm_pipeline()
     embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
-    db = Chroma(persist_directory="db", embedding_function = embeddings, client_settings=CHROMA_SETTINGS)
+    db = Chroma(persist_directory="db", embedding_function = embeddings)
     retriever = db.as_retriever()
     qa = RetrievalQA.from_chain_type(
         llm = llm,
@@ -126,39 +127,39 @@ def main():
         with open(filepath, "wb") as temp_file:
                 temp_file.write(uploaded_file.read())
 
-        col1, col2= st.columns([1,2])
-        with col1:
-            st.markdown("<h4 style color:black;'>File details</h4>", unsafe_allow_html=True)
-            st.json(file_details)
-            st.markdown("<h4 style color:black;'>File preview</h4>", unsafe_allow_html=True)
-            pdf_view = displayPDF(filepath)
+    col1, col2= st.columns([1,2])
+    # with col1:
+    #     st.markdown("<h4 style color:black;'>File details</h4>", unsafe_allow_html=True)
+    #     st.json(file_details)
+    #     st.markdown("<h4 style color:black;'>File preview</h4>", unsafe_allow_html=True)
+    #     pdf_view = displayPDF(filepath)
 
-        with col2:
-            with st.spinner('Embeddings are in process...'):
-                ingested_data = data_ingestion()
-            st.success('Embeddings are created successfully!')
-            st.markdown("<h4 style color:black;'>Chat Here</h4>", unsafe_allow_html=True)
+    with col2:
+        with st.spinner('Embeddings are in process...'):
+            ingested_data = data_ingestion()
+        st.success('Embeddings are created successfully!')
+        st.markdown("<h4 style color:black;'>Chat Here</h4>", unsafe_allow_html=True)
 
 
-            user_input = st.text_input("", key="input")
+        user_input = st.text_input("", key="input")
 
-            # Initialize session state for generated responses and past messages
-            if "generated" not in st.session_state:
-                st.session_state["generated"] = ["I am ready to help you"]
-            if "past" not in st.session_state:
-                st.session_state["past"] = ["Hey there!"]
-                
-            # Search the database for a response based on user input and update session state
-            if user_input:
-                answer = process_answer({'query': user_input})
-                st.session_state["past"].append(user_input)
-                response = answer
-                st.session_state["generated"].append(response)
+        # Initialize session state for generated responses and past messages
+        if "generated" not in st.session_state:
+            st.session_state["generated"] = ["I am ready to help you"]
+        if "past" not in st.session_state:
+            st.session_state["past"] = ["Hey there!"]
+            
+        # Search the database for a response based on user input and update session state
+        if user_input:
+            answer = process_answer({'query': user_input})
+            st.session_state["past"].append(user_input)
+            response = answer
+            st.session_state["generated"].append(response)
 
-            # Display conversation history using Streamlit messages
-            if st.session_state["generated"]:
-                display_conversation(st.session_state)
-        
+        # Display conversation history using Streamlit messages
+        if st.session_state["generated"]:
+            display_conversation(st.session_state)
+    
 
         
 
