@@ -20,13 +20,15 @@ st.set_page_config(layout="wide")
 # device = torch.device('cpu')
 
 checkpoint = "MBZUAI/LaMini-T5-738M"
+local_files_only = True
 print(f"Checkpoint path: {checkpoint}")  # Add this line for debugging
-tokenizer = AutoTokenizer.from_pretrained(checkpoint)
+tokenizer = AutoTokenizer.from_pretrained(checkpoint,cache_dir="models",local_files_only =local_files_only)
 base_model = AutoModelForSeq2SeqLM.from_pretrained(
     checkpoint,
     # device_map=device,
     torch_dtype=torch.float32,
     cache_dir="models",
+    local_files_only =local_files_only
 )
 
 persist_directory = "db"
