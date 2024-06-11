@@ -19,7 +19,8 @@ st.set_page_config(layout="wide")
 
 # device = torch.device('cpu')
 
-checkpoint = "MBZUAI/LaMini-T5-738M"
+# checkpoint = "MBZUAI/LaMini-T5-738M"
+checkpoint = "MBZUAI/LaMini-Flan-T5-783M"
 local_files_only = True
 print(f"Checkpoint path: {checkpoint}")  # Add this line for debugging
 tokenizer = AutoTokenizer.from_pretrained(checkpoint,cache_dir="models",local_files_only =local_files_only)
@@ -33,7 +34,7 @@ base_model = AutoModelForSeq2SeqLM.from_pretrained(
 
 persist_directory = "db"
 
-@st.cache_resource
+# @st.cache_resource
 def data_ingestion():
     for root, dirs, files in os.walk("docs"):
         for file in files:
@@ -50,8 +51,9 @@ def data_ingestion():
     db.persist()
     db=None 
 
-@st.cache_resource
+# @st.cache_resource
 def llm_pipeline():
+    print('llm_pipeline___________________________')
     pipe = pipeline(
         'text2text-generation',
         model = base_model,
@@ -65,8 +67,10 @@ def llm_pipeline():
     local_llm = HuggingFacePipeline(pipeline=pipe)
     return local_llm
 
-@st.cache_resource
+
+# @st.cache_resource
 def qa_llm():
+    print('qa_llm_____________________________')
     llm = llm_pipeline()
     embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
     db = Chroma(persist_directory="db", embedding_function = embeddings)
@@ -79,13 +83,14 @@ def qa_llm():
     )
     return qa
 
+
 def process_answer(instruction):
     response = ''
     instruction = instruction
     qa = qa_llm()
     generated_text = qa(instruction)
     answer = generated_text['result']
-    return answer
+    return answer,generated_text
 
 def get_file_size(file):
     file.seek(0, os.SEEK_END)
@@ -93,18 +98,18 @@ def get_file_size(file):
     file.seek(0)
     return file_size
 
-@st.cache_data
-#function to display the PDF of a given file 
-def displayPDF(file):
-    # Opening file from file path
-    with open(file, "rb") as f:
-        base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+# @st.cache_data
+# #function to display the PDF of a given file 
+# def displayPDF(file):
+#     # Opening file from file path
+#     with open(file, "rb") as f:
+#         base64_pdf = base64.b64encode(f.read()).decode('utf-8')
 
-    # Embedding PDF in HTML
-    pdf_display = F'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600" type="application/pdf"></iframe>'
+#     # Embedding PDF in HTML
+#     pdf_display = F'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600" type="application/pdf"></iframe>'
 
-    # Displaying File
-    st.markdown(pdf_display, unsafe_allow_html=True)
+#     # Displaying File
+#     st.markdown(pdf_display, unsafe_allow_html=True)
 
 # Display conversation history using Streamlit messages
 def display_conversation(history):
@@ -113,21 +118,22 @@ def display_conversation(history):
         message(history["generated"][i],key=str(i))
 
 def main():
-    st.markdown("<h1 style='text-align: center; color: blue;'>Chat with your PDF 🦜📄 </h1>", unsafe_allow_html=True)
-    st.markdown("<h3 style='text-align: center; color: grey;'>Built by <a href='https://github.com/AIAnytime'>AI Anytime with ❤️ </a></h3>", unsafe_allow_html=True)
+    st.title('Search PDF')
+    # st.markdown("<h1 style='text-align: center; color: blue;'>Chat with your PDF 🦜📄 </h1>", unsafe_allow_html=True)
+    # st.markdown("<h3 style='text-align: center; color: grey;'>Built by <a href='https://github.com/AIAnytime'>AI Anytime with ❤️ </a></h3>", unsafe_allow_html=True)
 
-    st.markdown("<h2 style='text-align: center; color:red;'>Upload your PDF 👇</h2>", unsafe_allow_html=True)
+    # st.markdown("<h2 style='text-align: center; color:red;'>Upload your PDF 👇</h2>", unsafe_allow_html=True)
 
-    uploaded_file = st.file_uploader("", type=["pdf"])
+    # uploaded_file = st.file_uploader("", type=["pdf"])
 
-    if uploaded_file is not None:
-        file_details = {
-            "Filename": uploaded_file.name,
-            "File size": get_file_size(uploaded_file)
-        }
-        filepath = "docs/"+uploaded_file.name
-        with open(filepath, "wb") as temp_file:
-                temp_file.write(uploaded_file.read())
+    # if uploaded_file is not None:
+    #     file_details = {
+    #         "Filename": uploaded_file.name,
+    #         "File size": get_file_size(uploaded_file)
+    #     }
+    #     filepath = "docs/"+uploaded_file.name
+    #     with open(filepath, "wb") as temp_file:
+    #             temp_file.write(uploaded_file.read())
 
     col1, col2= st.columns([1,2])
     # with col1:
@@ -137,11 +143,11 @@ def main():
     #     pdf_view = displayPDF(filepath)
 
     with col2:
-        with st.spinner('Embeddings are in process...'):
-            ingested_data = data_ingestion()
-        st.success('Embeddings are created successfully!')
-        st.markdown("<h4 style color:black;'>Chat Here</h4>", unsafe_allow_html=True)
-
+        # with st.spinner('Embeddings are in process...'):
+        #     ingested_data = data_ingestion()
+        # st.success('Embeddings are created successfully!')
+        # st.markdown("<h4 style color:black;'>Chat Here</h4>", unsafe_allow_html=True)
+        
 
         user_input = st.text_input("", key="input")
 
@@ -153,10 +159,11 @@ def main():
             
         # Search the database for a response based on user input and update session state
         if user_input:
-            answer = process_answer({'query': user_input})
+            answer,metaData = process_answer({'query': user_input})
             st.session_state["past"].append(user_input)
             response = answer
             st.session_state["generated"].append(response)
+            st.write(metaData)
 
         # Display conversation history using Streamlit messages
         if st.session_state["generated"]:
