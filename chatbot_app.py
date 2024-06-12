@@ -19,8 +19,8 @@ st.set_page_config(layout="wide")
 
 # device = torch.device('cpu')
 
-# checkpoint = "MBZUAI/LaMini-T5-738M"
-checkpoint = "MBZUAI/LaMini-Flan-T5-783M"
+checkpoint = "MBZUAI/LaMini-T5-738M"
+# checkpoint = "MBZUAI/LaMini-Flan-T5-783M"
 local_files_only = True
 print(f"Checkpoint path: {checkpoint}")  # Add this line for debugging
 tokenizer = AutoTokenizer.from_pretrained(checkpoint,cache_dir="models",local_files_only =local_files_only)
@@ -58,7 +58,7 @@ def llm_pipeline():
         'text2text-generation',
         model = base_model,
         tokenizer = tokenizer,
-        max_length = 256,
+        max_length = 1000,
         do_sample = True,
         temperature = 0.3,
         top_p= 0.95,
